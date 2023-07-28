@@ -6,6 +6,7 @@ package com.xuecheng.base.exception;
  */
 public class XueChengPlusException extends RuntimeException{
     private String errMessage;
+    private String errCode;
 
     public XueChengPlusException(){
         super();
@@ -16,8 +17,18 @@ public class XueChengPlusException extends RuntimeException{
         this.errMessage = errMessage;
     }
 
+    public XueChengPlusException(String errCode, String errMessage) {
+        super(errMessage);
+        this.errCode = errCode;
+        this.errMessage = errMessage;
+    }
+
     public String getErrMessage(){
         return errMessage;
+    }
+
+    public String getErrCode() {
+        return errCode;
     }
 
     public static void cast(CommonError commonError) {
