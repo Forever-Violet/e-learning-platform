@@ -34,4 +34,17 @@ public interface TeachplanService extends IService<Teachplan> {
     void deleteTeachplan(Long teachplanId);
 
 
+    /**
+     * @description 根据id下移课程计划的位置, 即将该课程计划的位置与其同级且下位的课程计划对调
+     * @param teachplanId 课程计划id
+     */
+    void moveDownTeachplan(Long teachplanId);
+
+    /**
+     * @description 根据id上移课程计划的位置, 即将该课程计划的位置与其同级且上位的课程计划对调
+     * @param teachplanId 课程计划id
+     */
+    void moveUpTeachplan(Long teachplanId);
+
+
 }

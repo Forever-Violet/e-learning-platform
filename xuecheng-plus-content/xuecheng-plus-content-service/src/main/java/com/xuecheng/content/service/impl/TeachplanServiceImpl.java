@@ -81,14 +81,12 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
                 .last("limit 1");  //只获取第一个记录, 即排序最大的记录,  last()方法用于拼接SQL语句的最后部分。
 
         Teachplan teachplan = teachplanMapper.selectOne(queryWrapper);
-//        Integer maxOrder = 0; //最大排序
-/*        for (Teachplan teachplan : teachplans) { // 遍历同父同级的节点, 找到最大的排序
-            if (teachplan.getOrderby() > maxOrder) {
-                maxOrder = teachplan.getOrderby();
-            }
-        }*/
+        if (teachplan == null) { // 如果当前节点是同父同课程下第一个章节(不管是大还是小)
+            return 1; // 设置排序级别为1
+        } else { // 如果不是第一个章节
+            return teachplan.getOrderby() + 1; //最大排序加1, 变成最末排序
+        }
 
-        return teachplan.getOrderby() + 1; //最大排序加1, 变成最末排序
     }
 
     @Transactional //事务
@@ -117,6 +115,56 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
             teachplanMediaMapper.delete(queryWrapper);
             // 然后删除小章节的信息
             teachplanMapper.deleteById(teachplanId);
+        }
+    }
+
+    // 下移课程计划
+    @Transactional //事务
+    @Override
+    public void moveDownTeachplan(Long teachplanId) {
+        // 先获取对象
+        Teachplan teachplan = teachplanMapper.selectById(teachplanId);
+
+        // 构造查询条件, 查询同父下 排序级别比当前结点大的 节点中的 排序级别最小的节点 的排序级别
+        LambdaQueryWrapper<Teachplan> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper
+                .eq(Teachplan::getParentid, teachplan.getParentid()) //同父
+                .eq(Teachplan::getCourseId, teachplan.getCourseId()) //同课程, 因为大章节的父id都是0, 所以要保证是同一课程下的大章节
+                .gt(Teachplan::getOrderby, teachplan.getOrderby()) // 大于当前结点的排序结点列表
+                .orderByAsc(Teachplan::getOrderby) // 升序排序的第一个即我们想要的节点
+                .last("limit 1");
+        Teachplan teachplanDown = teachplanMapper.selectOne(queryWrapper);
+        if (teachplanDown != null) { // 如果存在排序更末的节点, 即可以下移
+            Integer tempOrder = teachplanDown.getOrderby(); //暂时保存
+            teachplanDown.setOrderby(teachplan.getOrderby()); //对调顺序
+            teachplan.setOrderby(tempOrder);
+            teachplanMapper.updateById(teachplan); //更新
+            teachplanMapper.updateById(teachplanDown);
+        }
+    }
+
+    // 上移课程计划
+    @Transactional //事务
+    @Override
+    public void moveUpTeachplan(Long teachplanId) {
+        // 先获取对象
+        Teachplan teachplan = teachplanMapper.selectById(teachplanId);
+
+        // 构造查询条件, 查询同父下 排序级别比当前结点小的 节点中的 排序级别最大的节点 的排序级别
+        LambdaQueryWrapper<Teachplan> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper
+                .eq(Teachplan::getParentid, teachplan.getParentid()) //同父
+                .eq(Teachplan::getCourseId, teachplan.getCourseId()) //同课程, 因为大章节的父id都是0, 所以要保证是同一课程下的大章节
+                .lt(Teachplan::getOrderby, teachplan.getOrderby()) // 小于当前结点的排序结点列表
+                .orderByDesc(Teachplan::getOrderby) // 降序排序的第一个即我们想要的节点
+                .last("limit 1");
+        Teachplan teachplanUp = teachplanMapper.selectOne(queryWrapper);
+        if (teachplanUp != null) { // 如果存在排序更前的节点, 即可以上移
+            Integer tempOrder = teachplanUp.getOrderby(); //暂时保存
+            teachplanUp.setOrderby(teachplan.getOrderby()); //对调顺序
+            teachplan.setOrderby(tempOrder);
+            teachplanMapper.updateById(teachplan); //更新
+            teachplanMapper.updateById(teachplanUp);
         }
     }
 }
