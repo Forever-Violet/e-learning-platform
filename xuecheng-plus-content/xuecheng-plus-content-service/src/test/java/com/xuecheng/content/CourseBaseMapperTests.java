@@ -13,12 +13,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import javax.annotation.Resource;
 import java.util.List;
 
 @SpringBootTest
 public class CourseBaseMapperTests {
 
-    @Autowired
+    @Resource
     CourseBaseMapper courseBaseMapper;
 
     @Test
