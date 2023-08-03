@@ -8,10 +8,12 @@ import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @description 测试Minio
@@ -90,5 +92,52 @@ public class MinioTest {
         }
 
     }
+
+    // 将分块文件上传至minio
+    @Test
+    public void uploadChunk(){
+        String chunkFolderPath = "G:\\chunk\\";
+        File chunkFolder = new File(chunkFolderPath);
+        // 分块文件列表
+        File[] files = chunkFolder.listFiles();
+        // 将分块文件上传至minio
+        for (int i = 0; i < files.length; i++) {
+            try {
+                // 上传参数
+                UploadObjectArgs uploadObjectArgs = UploadObjectArgs.builder()
+                        .bucket("testbucket")
+                        .object("chunk/" + i)
+                        .filename(files[i].getAbsolutePath())
+                        .build();
+                minioClient.uploadObject(uploadObjectArgs); //上传
+                System.out.println("上传分块" + i + "成功");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // 合并文件, 要求分块文件最小5M(默认)
+    @Test
+    public void test_merge() throws Exception{
+        // 从0号开始循环, 每循环一次+1
+        List<ComposeSource> sources = Stream.iterate(0, i -> ++i)
+                .limit(6) //6个分块文件, 将流的大小限制为6
+                .map(i -> ComposeSource.builder()
+                        .bucket("testbucket")
+                        .object("chunk/".concat(Integer.toString(i))) //concat函数 : 拼接字符串
+                        .build())
+                // 将所有ComposeSource对象收集到list中
+                .collect(Collectors.toList());
+
+        ComposeObjectArgs composeObjectArgs = ComposeObjectArgs.builder()
+                .bucket("testbucket")
+                .object("merge01.mp4")
+                .sources(sources) //指定源文件列表
+                .build();
+        minioClient.composeObject(composeObjectArgs);
+    }
+
+
 
 }
