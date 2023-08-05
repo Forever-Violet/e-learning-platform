@@ -9,10 +9,12 @@ import com.xuecheng.base.model.PageParams;
 import com.xuecheng.base.model.PageResult;
 import com.xuecheng.base.model.RestResponse;
 import com.xuecheng.media.mapper.MediaFilesMapper;
+import com.xuecheng.media.mapper.MediaProcessMapper;
 import com.xuecheng.media.model.dto.QueryMediaParamsDto;
 import com.xuecheng.media.model.dto.UploadFileParamsDto;
 import com.xuecheng.media.model.dto.UploadFileResultDto;
 import com.xuecheng.media.model.po.MediaFiles;
+import com.xuecheng.media.model.po.MediaProcess;
 import com.xuecheng.media.service.MediaFileService;
 import io.minio.*;
 import io.minio.messages.DeleteError;
@@ -50,6 +52,9 @@ public class MediaFileServiceImpl implements MediaFileService {
 
     @Autowired
     MinioClient minioClient;
+
+    @Autowired
+    MediaProcessMapper mediaProcessMapper;
 
     @Autowired
     MediaFileService currentProxy; // 代理对象, 在非事务方法中调用同类下事务方法, 使事务生效
@@ -190,9 +195,34 @@ public class MediaFileServiceImpl implements MediaFileService {
                 XueChengPlusException.cast("保存文件信息失败");
                 return null;
             }
+
+            // 添加到待处理任务表
+            addWaitingTask(mediaFiles);
             log.debug("保存文件信息到数据库成功,{}", mediaFiles.toString());
         }
         return mediaFiles;
+    }
+
+    /**
+     * 添加待处理任务
+     * @param mediaFiles 媒资文件信息 (会判断是否为.avi视频, 如果是即需要转码, 添加到待处理任务表)
+     */
+    private void addWaitingTask(MediaFiles mediaFiles) {
+        // 文件名称
+        String filename = mediaFiles.getFilename();
+        // 文件扩展名
+        String extension = filename.substring(filename.lastIndexOf("."));
+        // 获取文件mimeType
+        String mimeType = getMimeType(extension);
+        // 如果mimeType是avi视频的, 那么添加到视频待处理表
+        if ("video/x-msvideo".equals(mimeType)) {
+            MediaProcess mediaProcess = new MediaProcess();
+            BeanUtils.copyProperties(mediaFiles, mediaProcess);
+            mediaProcess.setStatus("1"); //设置状态为未处理
+            mediaProcess.setFailCount(0); //设置失败次数默认为0
+            mediaProcessMapper.insert(mediaProcess); //插入待处理任务表
+        }
+
     }
 
     /**
@@ -426,7 +456,7 @@ public class MediaFileServiceImpl implements MediaFileService {
      * @param objectName 对象名称
      * @return 下载后的文件
      */
-    private File downloadFileFromMinIO(String bucket, String objectName) {
+    public File downloadFileFromMinIO(String bucket, String objectName) {
         // 临时文件
         File minioFile = null;
         FileOutputStream outputStream = null;

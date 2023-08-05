@@ -8,6 +8,8 @@ import com.xuecheng.media.model.dto.UploadFileParamsDto;
 import com.xuecheng.media.model.dto.UploadFileResultDto;
 import com.xuecheng.media.model.po.MediaFiles;
 
+import java.io.File;
+
 /**
  * @author 12508
  * @description 媒资文件管理业务类
@@ -81,6 +83,25 @@ public interface MediaFileService {
      * @return RestResponse
      */
     RestResponse mergeChunk(Long companyId, String fileMd5, int chunkTotal, UploadFileParamsDto uploadFileParamsDto);
+
+
+    /**
+     * @description 从minio下载文件
+     * @param bucket 桶
+     * @param objectName 对象名称
+     * @return 下载后的文件
+     */
+    File downloadFileFromMinIO(String bucket, String objectName);
+
+    /**
+     * @description 将文件写入minio
+     * @param localFilePath 文件地址
+     * @param mimeType mimeType
+     * @param bucket 桶
+     * @param objectName 对象名称
+     * @return boolean
+     */
+    boolean addMediaFilesToMinio(String localFilePath, String mimeType, String bucket, String objectName);
 
 
 }
