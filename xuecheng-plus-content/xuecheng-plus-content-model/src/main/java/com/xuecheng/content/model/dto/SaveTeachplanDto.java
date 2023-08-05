@@ -4,6 +4,8 @@ package com.xuecheng.content.model.dto;
 import lombok.Data;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
+
 /**
  * @description 保存课程计划dto, 包括新增、修改
  * @author 12508
@@ -52,4 +54,15 @@ public class SaveTeachplanDto {
      * 是否支持试学或预览（试看）
      */
     private String isPreview;
+
+    /**
+     * 开始直播时间
+     */
+    private LocalDateTime startTime;
+
+    /**
+     * 直播结束时间
+     */
+    private LocalDateTime endTime;
+
 }

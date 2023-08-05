@@ -1,16 +1,14 @@
 package com.xuecheng.content.api;
 
 import com.alibaba.fastjson.JSONObject;
-import com.xuecheng.base.exception.RestErrorResponse;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.BindTeachplanMediaDto;
 import com.xuecheng.content.model.dto.SaveTeachplanDto;
 import com.xuecheng.content.model.dto.TeachPlanDto;
 import com.xuecheng.content.service.TeachplanService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiOperation;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -73,6 +71,19 @@ public class TeachplanController {
     @ApiImplicitParam(value = "teachplanId", name = "课程计划Id", required = true)
     public void moveUpTeachplan(@PathVariable("id") Long teachplanId) {
         teachplanService.moveUpTeachplan(teachplanId);
+    }
+
+    @ApiOperation(value = "课程计划和媒资文件绑定")
+    @PostMapping("/teachplan/association/media")
+    public void associationMedia(@RequestBody BindTeachplanMediaDto bindTeachplanMediaDto) {
+        teachplanService.associationMedia(bindTeachplanMediaDto);
+    }
+
+    @ApiOperation(value = "解除课程计划与媒资的绑定")
+    @DeleteMapping("/teachplan/association/media/{teachPlanId}/{mediaId}")
+    public void unBindAssociationMedia(@PathVariable("teachPlanId") Long teachPlanId,
+                                       @PathVariable("mediaId") String mediaId) {
+        teachplanService.unBindAssociationMedia(teachPlanId, mediaId);
     }
 
 }

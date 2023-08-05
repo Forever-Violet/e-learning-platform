@@ -1,9 +1,11 @@
 package com.xuecheng.content.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.content.model.dto.BindTeachplanMediaDto;
 import com.xuecheng.content.model.dto.SaveTeachplanDto;
 import com.xuecheng.content.model.dto.TeachPlanDto;
 import com.xuecheng.content.model.po.Teachplan;
+import com.xuecheng.content.model.po.TeachplanMedia;
 
 import java.util.List;
 
@@ -45,6 +47,21 @@ public interface TeachplanService extends IService<Teachplan> {
      * @param teachplanId 课程计划id
      */
     void moveUpTeachplan(Long teachplanId);
+
+    /**
+     * @description 教学计划绑定媒资文件
+     * @param bindTeachplanMediaDto dto
+     * @return TeachplanMedia
+     */
+    TeachplanMedia associationMedia(BindTeachplanMediaDto bindTeachplanMediaDto);
+
+
+    /**
+     * @description 解除教学计划与媒资的绑定
+     * @param teachPlanId 教学计划id
+     * @param mediaId 媒资id
+     */
+    void unBindAssociationMedia(Long teachPlanId, String mediaId);
 
 
 }

@@ -40,6 +40,10 @@
         <result column="one_orderby"   property="orderby" />
         <result column="one_courseId"   property="courseId" />
         <result column="one_coursePubId"   property="coursePubId" />
+        <result column="one_isPreview"     property="isPreview" />
+        <result column="one_startTime"     property="startTime" />
+        <result column="one_endTime"     property="endTime" />
+        <result column="one_timelength" property="timelength" />
         <!--一级中包含多个二级数据, ofType : list中的对象类型-->
         <collection property="teachPlanTreeNodes" ofType="com.xuecheng.content.model.dto.TeachPlanDto">
             <!--二级数据映射-->
@@ -53,6 +57,10 @@
             <result column="two_orderby"   property="orderby" />
             <result column="two_courseId"   property="courseId" />
             <result column="two_coursePubId"   property="coursePubId" />
+            <result column="two_isPreview"     property="isPreview" />
+            <result column="two_startTime"     property="startTime" />
+            <result column="two_endTime"     property="endTime" />
+            <result column="two_timelength" property="timelength" />
             <association property="teachplanMedia" javaType="com.xuecheng.content.model.po.TeachplanMedia">
                 <result column="teachplanMeidaId"   property="id" />
                 <!--爆红不管-->
@@ -78,6 +86,10 @@
             one.orderby        one_orderby,
             one.course_id      one_courseId,
             one.course_pub_id  one_coursePubId,
+            one.is_preview     one_isPreview,
+            one.start_time     one_startTime,
+            one.end_time       one_endTime,
+            one.timelength     one_timelength,
             two.id             two_id,
             two.pname          two_pname,
             two.parentid       two_parentid,
@@ -88,6 +100,10 @@
             two.orderby        two_orderby,
             two.course_id      two_courseId,
             two.course_pub_id  two_coursePubId,
+            two.is_preview     two_isPreview,
+            two.start_time     two_startTime,
+            two.end_time       two_endTime,
+            two.timelength     two_timelength,
             m1.media_fileName  mediaFilename,
             m1.id					 teachplanMediaId,
             m1.media_id				 mediaId
