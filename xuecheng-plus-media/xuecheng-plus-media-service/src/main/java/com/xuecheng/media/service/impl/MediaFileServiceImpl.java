@@ -2,6 +2,7 @@ package com.xuecheng.media.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.j256.simplemagic.ContentInfo;
 import com.j256.simplemagic.ContentInfoUtil;
 import com.xuecheng.base.exception.XueChengPlusException;
@@ -45,7 +46,7 @@ import java.util.stream.Stream;
  */
 @Service
 @Slf4j
-public class MediaFileServiceImpl implements MediaFileService {
+public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFiles>  implements MediaFileService {
 
     @Autowired
     MediaFilesMapper mediaFilesMapper;

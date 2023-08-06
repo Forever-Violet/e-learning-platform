@@ -1,5 +1,6 @@
 package com.xuecheng.media.service;
 
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.xuecheng.base.model.PageParams;
 import com.xuecheng.base.model.PageResult;
 import com.xuecheng.base.model.RestResponse;
@@ -16,7 +17,7 @@ import java.io.File;
  * @date 2022/9/10 8:55
  * @version 1.0
  */
-public interface MediaFileService {
+public interface MediaFileService extends IService<MediaFiles> {
 
     /**
      * @description 媒资文件查询方法
