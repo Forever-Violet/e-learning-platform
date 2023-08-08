@@ -2,6 +2,7 @@ package com.xuecheng.content.service.impl;
 
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.xuecheng.base.exception.CommonError;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.content.mapper.CourseMarketMapper;
 import com.xuecheng.content.mapper.CoursePublishMapper;
@@ -16,6 +17,8 @@ import com.xuecheng.content.model.po.CoursePublishPre;
 import com.xuecheng.content.service.CourseBaseService;
 import com.xuecheng.content.service.CoursePublishService;
 import com.xuecheng.content.service.TeachplanService;
+import com.xuecheng.messagesdk.model.po.MqMessage;
+import com.xuecheng.messagesdk.service.MqMessageService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -51,6 +54,9 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
     @Autowired
     CoursePublishPreMapper coursePublishPreMapper;
+
+    @Autowired
+    MqMessageService mqMessageService;
 
     @Override
     public CoursePreviewDto getCoursePreviewInfo(Long courseId) {
@@ -130,4 +136,85 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         courseBase.setAuditStatus("202003");
         courseBaseService.updateById(courseBase);
     }
+
+
+    @Transactional //本地事务
+    @Override
+    public void publish(Long companyId, Long courseId) {
+        // 约束校验
+        // 查询课程预发布表
+        CoursePublishPre coursePublishPre = coursePublishPreMapper.selectById(courseId);
+        if (coursePublishPre == null) {
+            XueChengPlusException.cast("请先提交课程审核，审核通过后才可以发布。");
+        }
+        // 本机构只允许发布本机构的课程
+        if (!coursePublishPre.getCompanyId().equals(companyId)) {
+            XueChengPlusException.cast("不允许发布其他机构的课程。");
+        }
+
+        // 课程审核状态校验
+        String auditStatus = coursePublishPre.getStatus();
+        if (!"202004".equals(auditStatus)) { // 课程审核状态是否为通过
+            XueChengPlusException.cast("操作失败，课程审核未通过。");
+        }
+
+        // 保存课程发布信息
+        saveCoursePublish(courseId);
+
+        // 保存发布到消息表, 以便后续调度任务完成分布式事务 实现A, P, 最终一致性
+        saveCoursePublishMessage(courseId);
+
+        // 删除课程预发布表对应的记录
+        coursePublishPreMapper.deleteById(courseId);
+
+    }
+
+    /**
+     * @description 保存课程发布信息到课程(已)发布表
+     * @param courseId 课程id
+     */
+    private void saveCoursePublish(Long courseId) {
+        // 整合课程发布信息
+        // 查询课程预发布表
+        CoursePublishPre coursePublishPre = coursePublishPreMapper.selectById(courseId);
+        if (coursePublishPre == null) {
+            XueChengPlusException.cast("课程发布数据为空。");
+        }
+
+        CoursePublish coursePublish = new CoursePublish();
+
+        // 拷贝到课程发布对象
+        BeanUtils.copyProperties(coursePublishPre, coursePublish);
+        // 设置状态为 已发布
+        coursePublish.setStatus("203002");
+        // 检查在课程发布表中已经存在当前课程
+        CoursePublish coursePublishUpdate = coursePublishMapper.selectById(courseId);
+        if (coursePublishUpdate == null) { // 若不存在, 则插入
+            coursePublishMapper.insert(coursePublish);
+        } else { // 若存在, 增更新
+            coursePublishMapper.updateById(coursePublish);
+        }
+
+        // 更新课程基本表的发布状态
+        CourseBase courseBase = courseBaseService.getById(courseId);
+        // 设置状态为 已发布
+        courseBase.setStatus("203002");
+        courseBaseService.updateById(courseBase);
+
+    }
+
+    /**
+     * @description 保存消息到消息表
+     * @param courseId 课程id
+     */
+    private void saveCoursePublishMessage(Long courseId) {
+
+        MqMessage mqMessage = mqMessageService.addMessage("course_publish",
+                String.valueOf(courseId), null, null);
+        if (mqMessage == null) { //如果插入失败
+            XueChengPlusException.cast(CommonError.UNKNOWN_ERROR);
+        }
+
+    }
+
 }
