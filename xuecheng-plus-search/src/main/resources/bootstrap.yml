@@ -1,24 +1,24 @@
 spring:
   application:
-    name: content-service
+    name: search
   cloud:
     nacos:
       server-addr: 120.46.58.64:8801
-      discovery: # 服务注册相关配置
+      discovery:
         namespace: dev
         group: xuecheng-plus-project
-      config: # 配置文件相关信息
+      config:
         namespace: dev
         group: xuecheng-plus-project
         file-extension: yaml
         refresh-enabled: true
-        shared-configs: # 共享配置
+        shared-configs:
+          - data-id: swagger-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
           - data-id: logging-${spring.profiles.active}.yaml
             group: xuecheng-plus-common
             refresh: true
-          - data-id: feign-${spring.profiles.active}.yaml
-            group: xuecheng-plus-common
-            refresh: true
+
   profiles:
     active: dev
-

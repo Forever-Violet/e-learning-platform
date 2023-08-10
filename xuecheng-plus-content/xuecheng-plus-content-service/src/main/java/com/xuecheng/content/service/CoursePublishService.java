@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.xuecheng.content.model.dto.CoursePreviewDto;
 import com.xuecheng.content.model.po.CoursePublish;
 
+import java.io.File;
+
 /**
  * <p>
  * 课程发布 服务类
@@ -36,6 +38,21 @@ public interface CoursePublishService extends IService<CoursePublish> {
      * @param courseId 课程id
      */
     void publish(Long companyId, Long courseId);
+
+
+    /**
+     * @description 课程页面静态化
+     * @param courseId 课程id
+     * @return File 静态化页面文件
+     */
+    File generateCourseHtml(Long courseId);
+
+    /**
+     * @description 调用媒资管理服务的远程接口(通过FeignClient)来上传静态页面到minIO
+     * @param courseId 课程id
+     * @param file 静态化页面
+     */
+    void uploadCourseHtml(Long courseId, File file);
 
 
 }

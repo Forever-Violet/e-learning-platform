@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xuecheng.base.exception.CommonError;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.config.MultipartSupportConfig;
+import com.xuecheng.content.feignclient.MediaServiceClient;
 import com.xuecheng.content.mapper.CourseMarketMapper;
 import com.xuecheng.content.mapper.CoursePublishMapper;
 import com.xuecheng.content.mapper.CoursePublishPreMapper;
@@ -19,15 +21,25 @@ import com.xuecheng.content.service.CoursePublishService;
 import com.xuecheng.content.service.TeachplanService;
 import com.xuecheng.messagesdk.model.po.MqMessage;
 import com.xuecheng.messagesdk.service.MqMessageService;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -57,6 +69,10 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
     @Autowired
     MqMessageService mqMessageService;
+
+    @Autowired
+    MediaServiceClient mediaServiceClient;
+
 
     @Override
     public CoursePreviewDto getCoursePreviewInfo(Long courseId) {
@@ -217,4 +233,63 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
     }
 
+    @Override
+    public File generateCourseHtml(Long courseId) {
+
+        // 静态化文件
+        File htmlFile = null;
+
+        try{
+            // 配置freemarker
+            Configuration configuration = new Configuration(Configuration.getVersion());
+
+            // 加载模板
+            // 选定指定模板路径, classpath下templates下
+            // 得到classpath路径
+            String classpath = this.getClass().getResource("/").getPath();
+            configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
+            // 设定字符编码
+            configuration.setDefaultEncoding("utf-8");
+
+            // 指定模板文件名称
+            Template template = configuration.getTemplate("course_template.ftl");
+
+            // 准备数据
+            CoursePreviewDto coursePreviewDto = this.getCoursePreviewInfo(courseId);
+
+            Map<String, Object> map = new HashMap<>();
+            map.put("model", coursePreviewDto); //因为要给数据指定名称"model", 所以使用map
+            // 静态化
+            // 参数1: 模板, 参数2: 数据模型
+            String content = FreeMarkerTemplateUtils.processTemplateIntoString(template, map);
+            // 将静态化内容输出到文件(输入流)中
+            InputStream inputStream = IOUtils.toInputStream(content);
+            // 创建新的(空的、临时的)静态化文件
+            htmlFile = File.createTempFile("course", ".html");
+            log.debug("课程静态化, 生成静态文件:{}", htmlFile.getAbsolutePath());
+            // 输出六
+            FileOutputStream outputStream = new FileOutputStream(htmlFile);
+            // 将输入流的数据拷贝到输出流
+            IOUtils.copy(inputStream, outputStream);
+        } catch (Exception e) {
+            log.error("课程静态化出现异常:{}", e.toString());
+            XueChengPlusException.cast("课程静态化异常");
+        }
+
+        return htmlFile;
+    }
+
+    @Override
+    public void uploadCourseHtml(Long courseId, File file) {
+        // 将File类型文件转为MultipartFile类型, 以便传输
+        MultipartFile multipartFile = MultipartSupportConfig.getMultipartFile(file);
+        try {
+            String course = mediaServiceClient.upload(multipartFile, "course/" + courseId + ".html");
+            if (course == null) {
+                XueChengPlusException.cast("上传静态文件异常");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

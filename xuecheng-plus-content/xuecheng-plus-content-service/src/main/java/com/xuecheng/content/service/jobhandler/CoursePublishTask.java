@@ -1,13 +1,21 @@
 package com.xuecheng.content.service.jobhandler;
 
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.feignclient.SearchServiceClient;
+import com.xuecheng.content.model.po.CourseIndex;
+import com.xuecheng.content.model.po.CoursePublish;
+import com.xuecheng.content.service.CoursePublishService;
 import com.xuecheng.messagesdk.model.po.MqMessage;
 import com.xuecheng.messagesdk.service.MessageProcessAbstract;
 import com.xuecheng.messagesdk.service.MqMessageService;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -16,6 +24,12 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 public class CoursePublishTask extends MessageProcessAbstract {
+
+    @Autowired
+    CoursePublishService coursePublishService;
+
+    @Autowired
+    SearchServiceClient searchServiceClient;
 
     // 任务调度入口
     @XxlJob("CoursePublishJobHandler")
@@ -59,11 +73,13 @@ public class CoursePublishTask extends MessageProcessAbstract {
             return;
         }
         // 开始进行课程页面静态化
-        try {
-            TimeUnit.SECONDS.sleep(10);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        // 生成静态化页面
+        File file = coursePublishService.generateCourseHtml(courseId);
+        // 上传静态化页面
+        if (file != null) {
+            coursePublishService.uploadCourseHtml(courseId, file);
         }
+
         // 保存第一阶段任务状态为 已完成
         mqMessageService.completedStageOne(id);
     }
@@ -83,14 +99,26 @@ public class CoursePublishTask extends MessageProcessAbstract {
             return;
         }
 
-        try {
-            TimeUnit.SECONDS.sleep(2);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        Boolean result = saveCourseIndex(courseId);
+        if (result) {
+            // 保存第二阶段任务状态为 已完成
+            mqMessageService.completedStageTwo(id);
         }
 
-        // 保存第二阶段任务状态为 已完成
-        mqMessageService.completedStageTwo(id);
+    }
+
+    private Boolean saveCourseIndex(long courseId) {
+        // 取出课程发布信息
+        CoursePublish coursePublish = coursePublishService.getById(courseId);
+        // 拷贝至课程索引对象
+        CourseIndex courseIndex = new CourseIndex();
+        BeanUtils.copyProperties(coursePublish, courseIndex);
+        // 远程调用搜索服务api, 添加课程信息(文档)到索引
+        Boolean add = searchServiceClient.add(courseIndex);
+        if (!add) {
+            XueChengPlusException.cast("添加文档到索引失败");
+        }
+        return true;
     }
 
     // 将课程信息缓存至redis
