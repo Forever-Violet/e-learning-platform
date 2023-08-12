@@ -1,0 +1,15 @@
+### 授权码模式
+### 第一步申请授权码(浏览器请求)/auth/oauth/authorize?client_id=c1&response_type=code&scope=all&redirect_uri=http://www.51xuecheng.cn
+### 第二步申请令牌
+POST {{auth_host}}/auth/oauth/token?client_id=XcWebApp&client_secret=XcWebApp&grant_type=authorization_code&code=V8JCZA&redirect_uri=http://www.51xuecheng.cn
+
+
+### 密码模式 请求令牌
+POST {{auth_host}}/auth/oauth/token?client_id=XcWebApp&client_secret=XcWebApp&grant_type=password&username=zhangsan&password=123
+#•client_id：客户端准入标识。
+#•client_secret：客户端秘钥。
+#•grant_type：授权类型，填写password表示密码模式
+#•username：资源拥有者用户名。
+#•password：资源拥有者密码。
+#这种模式十分简单，但是却意味着直接将用户敏感信息泄漏给了client，因此这就说明这种模式只能用于client是我们自己开发的情况下。
+#通过演示授权码模式和密码模式，授权码模式适合客户端和认证服务非同一个系统的情况，所以本项目使用授权码模式完成微信扫码认证。本项目采用密码模式作为前端请求微服务的认证方式。
