@@ -100,4 +100,25 @@
     </dependencies>
 
 
+    <!-- 添加如下内容可以让services面板自动找到该服务的启动类 -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <finalName>${project.name}</finalName>
+                    <!--填写启动类的路径-->
+                    <mainClass>com.rfm.salaryconsumeruser.SalaryConsumerUserApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

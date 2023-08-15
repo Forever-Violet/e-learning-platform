@@ -1,16 +1,15 @@
 package com.xuecheng.auth.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 /**
  * @author Mr.M
@@ -23,6 +22,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 
+/*
     //配置用户信息服务
     @Bean
     public UserDetailsService userDetailsService() {
@@ -32,12 +32,22 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         manager.createUser(User.withUsername("lisi").password("456").authorities("p2").build()); //lisi拥有p2权限
         return manager;
     }
+*/
+
+    @Autowired
+    DaoAuthenticationProviderCustom daoAuthenticationProviderCustom;
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        auth.authenticationProvider(daoAuthenticationProviderCustom);
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
 //        //密码为明文方式
-        return NoOpPasswordEncoder.getInstance();
-//        return new BCryptPasswordEncoder();
+//        return NoOpPasswordEncoder.getInstance();
+        // 密码为加密模式
+        return new BCryptPasswordEncoder();
     }
 
     //配置安全拦截机制
