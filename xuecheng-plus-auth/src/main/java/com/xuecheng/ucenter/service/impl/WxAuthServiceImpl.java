@@ -42,7 +42,7 @@ public class WxAuthServiceImpl implements AuthService, WxAuthService {
     XcUserRoleMapper xcUserRoleMapper;
 
     @Autowired
-    WxAuthService currentProxy;
+    WxAuthServiceImpl currentProxy;
 
     @Value("${weixin.appid}")
     String appid;
