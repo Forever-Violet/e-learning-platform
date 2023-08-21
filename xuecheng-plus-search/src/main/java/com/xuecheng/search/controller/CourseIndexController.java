@@ -30,7 +30,7 @@ public class CourseIndexController {
     IndexService indexService;
 
     @ApiOperation("添加课程索引")
-    @PostMapping("course")
+    @PostMapping("/course")
     public Boolean add(@RequestBody CourseIndex courseIndex) {
 
         Long id = courseIndex.getId();

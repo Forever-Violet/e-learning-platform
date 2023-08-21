@@ -13,6 +13,7 @@ import com.xuecheng.content.util.SecurityUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,17 +39,23 @@ public class CourseBaseInfoController {
      */
     @ApiOperation("课程查询接口")
     @PostMapping ("/course/list")
+    @PreAuthorize("hasAuthority('xc_teachmanager_course_list')") //@PreAuthorize表示执行此方法需要授权, 如果当前用户请求没有权限则抛出异常
     public PageResult<CourseBase> list(PageParams pageParams
             , @RequestBody(required = false) QueryCourseParamsDto queryCourseParamsDto) { // required = false非必需
-
-        return courseBaseService.queryCourseBaseList(pageParams, queryCourseParamsDto);
+        // 取出用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+        // 机构id
+        Long companyId = Long.parseLong(xcUser.getCompanyId());
+        return courseBaseService.queryCourseBaseList(companyId, pageParams, queryCourseParamsDto);
     }
 
     @ApiOperation("新增课程")
     @PostMapping("/course")                             //开启校验
     public CourseBaseInfoDto createCourseBase(@RequestBody @Validated AddCourseDto addCourseDto) {
-        // 机构id, 由于认证系统没有上线, 暂时硬编码
-        Long companyId = 1234125125L;
+        // 取出用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+        // 机构id
+        Long companyId = Long.parseLong(xcUser.getCompanyId());
         return courseBaseService.createCourseBase(companyId, addCourseDto);
     }
 
@@ -66,8 +73,10 @@ public class CourseBaseInfoController {
     @ApiOperation("修改课程信息")
     @PutMapping("/course")
     public CourseBaseInfoDto modifyCourseBase(@RequestBody @Validated EditCourseDto editCourseDto) {
-        // 机构id, 还没完善认证系统, 先硬编码
-        Long companyId = 124124124L;
+        // 取出用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+        // 机构id
+        Long companyId = Long.parseLong(xcUser.getCompanyId());
         return courseBaseService.updateCourseBase(companyId, editCourseDto);
     }
 

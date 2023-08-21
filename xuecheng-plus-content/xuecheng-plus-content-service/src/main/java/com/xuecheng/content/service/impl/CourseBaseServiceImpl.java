@@ -56,7 +56,7 @@ public class CourseBaseServiceImpl extends ServiceImpl<CourseBaseMapper, CourseB
 
 
     @Override
-    public PageResult<CourseBase> queryCourseBaseList(PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto) {
+    public PageResult<CourseBase> queryCourseBaseList(Long companyId, PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto) {
 
         // 构建查询条件对象
         LambdaQueryWrapper<CourseBase> queryWrapper = new LambdaQueryWrapper<>();
@@ -67,7 +67,8 @@ public class CourseBaseServiceImpl extends ServiceImpl<CourseBaseMapper, CourseB
                 .eq(StringUtils.isNotEmpty(queryCourseParamsDto.getAuditStatus()), CourseBase::getAuditStatus,
                         queryCourseParamsDto.getAuditStatus())  // 审核状态
                 .eq(StringUtils.isNotEmpty(queryCourseParamsDto.getPublishStatus()), CourseBase::getStatus,
-                        queryCourseParamsDto.getPublishStatus()); // 发布状态
+                        queryCourseParamsDto.getPublishStatus()) // 发布状态
+                .eq(CourseBase::getCompanyId, companyId); // 机构id
 
         // 分页对象
         Page<CourseBase> page = new Page<>(pageParams.getPageNo(), pageParams.getPageSize());
@@ -162,6 +163,9 @@ public class CourseBaseServiceImpl extends ServiceImpl<CourseBaseMapper, CourseB
             if (courseMarketNew.getPrice() == null || courseMarketNew.getPrice() <= 0) {
                 throw new XueChengPlusException("课程收费价格不能为空且必须大于0");
             }
+        }
+        if (courseMarketNew.getValidDays() == null || courseMarketNew.getValidDays() < 1) {
+            courseMarketNew.setValidDays(365); //默认有效期365
         }
         // 根据id从课程营销表查询
         CourseMarket courseMarketObj = courseMarketMapper.selectById(courseMarketNew.getId());

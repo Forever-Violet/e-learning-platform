@@ -292,4 +292,9 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
             e.printStackTrace();
         }
     }
+
+    @Override
+    public CoursePublish getCoursePublish(Long courseId) {
+        return coursePublishMapper.selectById(courseId);
+    }
 }

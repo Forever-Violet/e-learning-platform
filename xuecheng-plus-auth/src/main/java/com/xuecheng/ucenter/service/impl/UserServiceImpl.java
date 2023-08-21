@@ -1,9 +1,11 @@
 package com.xuecheng.ucenter.service.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.xuecheng.ucenter.mapper.XcMenuMapper;
 import com.xuecheng.ucenter.mapper.XcUserMapper;
 import com.xuecheng.ucenter.model.dto.AuthParamsDto;
 import com.xuecheng.ucenter.model.dto.XcUserExt;
+import com.xuecheng.ucenter.model.po.XcMenu;
 import com.xuecheng.ucenter.service.AuthService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 @Service
 public class UserServiceImpl implements UserDetailsService {
@@ -23,6 +28,9 @@ public class UserServiceImpl implements UserDetailsService {
 
     @Autowired
     ApplicationContext applicationContext; //注意这里导入的包是spring框架的ApplicationContext
+
+    @Autowired
+    XcMenuMapper xcMenuMapper; //用来查询权限
 //    @Autowired
 //    AuthService authService;
 
@@ -49,7 +57,7 @@ public class UserServiceImpl implements UserDetailsService {
         AuthService authService = applicationContext.getBean(authType + "_authservice", AuthService.class);
         // 认证
         XcUserExt user = authService.execute(authParamsDto);
-
+        // 根据UserDetails对象生成令牌
         return getUserPrincipal(user);
     }
 
@@ -59,15 +67,30 @@ public class UserServiceImpl implements UserDetailsService {
      * @return
      */
     private UserDetails getUserPrincipal(XcUserExt user) {
-        // 用户权限, 如果不加会报Cannot pass a null GrantedAuthority collection
-        String[] authorities = {"p1"};
+        // 查询用户权限, 如果不加会报Cannot pass a null GrantedAuthority collection
+        List<XcMenu> xcMenus = xcMenuMapper.selectPermissionByUserId(user.getId());
+        List<String> permissions = new ArrayList<>();
+        if (xcMenus.size() == 0) {
+            // 用户权限, 如果不加会报Cannot pass a null GrantedAuthority collection, 没有也得加
+            permissions.add("p1");
+        } else { // 查询到了权限
+            xcMenus.forEach(menu -> { //遍历权限(菜单)列表
+                permissions.add(menu.getCode()); //将权限添加到列表
+            });
+        }
+        // 将用户权限放在XcUserExt对象中
+        user.setPermissions(permissions);
+
         String password = user.getPassword();
         // 为了安全在令牌中不放密码
         user.setPassword(null);
         // 将user对象转为json
         String userString = JSON.toJSONString(user);
         // 创建UserDetails对象
-        UserDetails userDetails = User.withUsername(userString).password(password).authorities(authorities).build();
+        UserDetails userDetails = User.withUsername(userString)
+                .password(password)
+                .authorities(permissions.toArray(new String[0])) // 将 permissions 转换为一个 String 数组, 由于 toArray 方法会根据 List 的大小自动创建一个足够容纳全部元素的新数组，因此可以传入一个长度为 0 的空数组，这样就能够确保创建一个恰好能够容纳所有元素的新数组。
+                .build();
         return userDetails;
 
     }
