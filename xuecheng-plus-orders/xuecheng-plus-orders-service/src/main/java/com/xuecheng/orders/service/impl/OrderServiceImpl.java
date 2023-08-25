@@ -11,7 +11,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.utils.IdWorkerUtils;
 import com.xuecheng.base.utils.QRCodeUtil;
+import com.xuecheng.messagesdk.model.po.MqMessage;
+import com.xuecheng.messagesdk.service.MqMessageService;
 import com.xuecheng.orders.config.AlipayConfig;
+import com.xuecheng.orders.config.PayNotifyConfig;
 import com.xuecheng.orders.mapper.XcOrdersGoodsMapper;
 import com.xuecheng.orders.mapper.XcOrdersMapper;
 import com.xuecheng.orders.mapper.XcPayRecordMapper;
@@ -23,6 +26,11 @@ import com.xuecheng.orders.model.po.XcOrdersGoods;
 import com.xuecheng.orders.model.po.XcPayRecord;
 import com.xuecheng.orders.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageDeliveryMode;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +73,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     OrderServiceImpl currentProxy;
+
+    @Resource
+    MqMessageService mqMessageService;
+
+    @Resource
+    RabbitTemplate rabbitTemplate;
 
     // 创建订单记录, 返回支付记录(包含二维码)
     @Transactional
@@ -267,7 +282,8 @@ public class OrderServiceImpl implements OrderService {
         // 支付结果
         String trade_status = payStatusDto.getTrade_status();
         log.debug("收到支付结果:{}, 支付记录:{}", payStatusDto.toString(), payRecord.toString());
-        if (trade_status.equals("TRADE_SUCCESS")) {
+
+        if (trade_status.equals("TRADE_SUCCESS")) { //如果查询到支付成功
             // 支付金额变为分, *100
             Float totalPrice = payRecord.getTotalPrice() * 100;
             Float total_amount = Float.parseFloat(payStatusDto.getTotal_amount()) * 100;
@@ -300,7 +316,7 @@ public class OrderServiceImpl implements OrderService {
                 log.info("根据支付记录[{}]找不到订单", payRecord_update.toString());
                 XueChengPlusException.cast("根据支付记录找不到订单");
             }
-            
+
             // ====更新订单表中的订单状态为支付成功====
             XcOrders orders_update = new XcOrders();
             orders_update.setStatus("600002"); //支付成功
@@ -312,7 +328,43 @@ public class OrderServiceImpl implements OrderService {
                 log.info("更新订单状态失败, 订单号:{}", orderId);
                 XueChengPlusException.cast("更新订单表状态失败");
             }
+
+            // ====保存消息记录到消息表, 参数1: 支付结果通知类型, 参数2: 业务id(选课记录id), 参数3: 业务类型(60201 购买课程)====
+            MqMessage mqMessage = mqMessageService.addMessage("payresult_notify"
+                    , orders.getOutBusinessId(), orders.getOrderType(), null);
+            // 发送消息
+            notifyPayResult(mqMessage);
         }
+
+    }
+
+    // 发送支付通知结果
+    @Override
+    public void notifyPayResult(MqMessage mqMessage) {
+
+        // 1.消息体, 转为json
+        String msg = JSON.toJSONString(mqMessage);
+        // 创建一个持久化消息
+        Message msgObj = MessageBuilder.withBody(msg.getBytes(StandardCharsets.UTF_8))
+                .setDeliveryMode(MessageDeliveryMode.PERSISTENT) //持久化模式
+                .build();
+        // 2.全局唯一的消息ID, 需要封装到CorrelationData中
+        CorrelationData correlationData = new CorrelationData(mqMessage.getId().toString());
+        // 3.使用correlationData指定回调方法, 添加callback
+        correlationData.getFuture().addCallback(result -> {
+            if (result.isAck()) {
+                // 3.1. ack, 消息成功
+                log.debug("通知支付结果消息发送成功, ID:{}", correlationData.getId());
+                // 消息完成, 删除消息表中的记录
+                mqMessageService.completed(mqMessage.getId());
+            } else {
+                // 3.2. nack, 消息失败
+                log.error("通知支付结果消息发送失败, ID:{}, 原因:{}", correlationData.getId(), result.getReason());
+            }
+        }, ex -> log.error("消息发送异常, ID:{}, 原因:{}", correlationData.getId(), ex.getMessage()));
+        // 发送消息                     参数: 1.交换机、2.路由键、3.消息对象、4.一个用于关联消息的数据对象。它可以是任何Java对象，通常用于在发送消息时跟踪消息的状态和结果。
+        rabbitTemplate.convertAndSend(PayNotifyConfig.PAYNOTIFY_EXCHANGE_FANOUT, "", msgObj, correlationData);
+
 
     }
 }

@@ -11,6 +11,7 @@ import com.xuecheng.learning.model.dto.XcCourseTablesDto;
 import com.xuecheng.learning.model.po.XcChooseCourse;
 import com.xuecheng.learning.model.po.XcCourseTables;
 import com.xuecheng.learning.service.MyCourseTablesService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Slf4j
 public class MyCourseTablesServiceImpl implements MyCourseTablesService {
 
     @Resource
@@ -208,5 +210,35 @@ public class MyCourseTablesServiceImpl implements MyCourseTablesService {
             xcCourseTablesDto.setLearnStatus("702003");
             return xcCourseTablesDto;
         }
+    }
+
+
+    // 更新选课记录的状态为成功, 向我的课程表中插入选课成功的课程
+    @Override
+    public boolean saveChooseCourseSuccess(String chooseCourseId) {
+        // 根据选课id查询选课记录
+        XcChooseCourse chooseCourse = xcChooseCourseMapper.selectById(chooseCourseId);
+        if (chooseCourse == null) {
+            log.debug("接收购买课程的消息，根据选课id从数据库找不到选课记录，选课id:{}", chooseCourseId);
+            return false;
+        }
+        // 选课状态
+        String status = chooseCourse.getStatus();
+        // 只有当未支付时才更新为已支付
+        if ("701002".equals(status)) {
+            // 更新选课记录的状态为支付成功
+            chooseCourse.setStatus("701001");
+            int update = xcChooseCourseMapper.updateById(chooseCourse);
+            if (update <= 0) {
+                log.debug("添加选课记录失败:{}", chooseCourseId);
+                XueChengPlusException.cast("添加选课记录失败");
+            }
+
+            // 向我的课程表插入记录
+            XcCourseTables xcCourseTables = addCourseTables(chooseCourse);
+            return true;
+        }
+
+        return false;
     }
 }

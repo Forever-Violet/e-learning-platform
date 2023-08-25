@@ -114,7 +114,7 @@ public class OrderController {
     }
 
     @ApiOperation("接收支付结果通知")
-    @PostMapping("/receivenotify")
+    @PostMapping("/receivenotify") //此接口需要内网穿透, 因为是支付宝发送请求到本机, 设置的NotifyUrl需要在公网能被解析到本机ip
     public void receivenotify(HttpServletRequest request, HttpServletResponse out) throws UnsupportedEncodingException, AlipayApiException {
         Map<String, String> params = new HashMap<String, String>();
         Map requestParams = request.getParameterMap();
@@ -154,7 +154,7 @@ public class OrderController {
                 payStatusDto.setApp_id(app_id);
                 payStatusDto.setTrade_no(trade_no);
                 payStatusDto.setTotal_amount(total_amount);
-
+                // 保存支付结果, 订单表and支付记录表
                 orderService.saveAliPayStatus(payStatusDto);
 
             }
