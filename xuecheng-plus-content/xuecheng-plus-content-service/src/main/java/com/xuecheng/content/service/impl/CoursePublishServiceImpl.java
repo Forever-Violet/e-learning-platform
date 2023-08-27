@@ -21,6 +21,7 @@ import com.xuecheng.content.service.CoursePublishService;
 import com.xuecheng.content.service.TeachplanService;
 import com.xuecheng.messagesdk.model.po.MqMessage;
 import com.xuecheng.messagesdk.service.MqMessageService;
+import freemarker.cache.ClassTemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import lombok.extern.slf4j.Slf4j;
@@ -245,9 +246,12 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
             // 加载模板
             // 选定指定模板路径, classpath下templates下
-            // 得到classpath路径
-            String classpath = this.getClass().getResource("/").getPath();
-            configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
+            // 得到classpath路径, 此方法只在开发环境起效
+//            String classpath = this.getClass().getResource("/").getPath();
+//            configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
+            //更改为如下方式
+            configuration.setTemplateLoader(new ClassTemplateLoader(this.getClass().getClassLoader(),"/templates"));
+            
             // 设定字符编码
             configuration.setDefaultEncoding("utf-8");
 
