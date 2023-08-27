@@ -83,16 +83,14 @@
 
     <!-- 添加如下内容可以让services面板自动找到该服务的启动类 -->
     <build>
+        <!--jar包名称-->
+        <finalName>${project.artifactId}-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <finalName>${project.name}</finalName>
-                    <!--填写启动类的路径-->
-                    <mainClass>com.rfm.salaryconsumeruser.SalaryConsumerUserApplication</mainClass>
-                </configuration>
-                <executions>
+                <version>${spring-boot.version}</version>
+                <executions> <!--使用springboot打包插件进行打包，在需要打可执行包的工程中配置spring-boot-maven-plugin插件否则报 “jar中没有主清单属性” 。-->
                     <execution>
                         <goals>
                             <goal>repackage</goal>

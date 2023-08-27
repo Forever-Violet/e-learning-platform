@@ -3,3 +3,6 @@ POST {{checkcode_host}}/checkcode/pic
 
 ### 校验验证码
 POST {{checkcode_host}}/checkcode/verify?key=checkcode:3760cca85fa342ffbba03ef5d511c231&code=X3NW
+
+### 验证码申请
+POST http://172.17.221.132:63075/checkcode/pic

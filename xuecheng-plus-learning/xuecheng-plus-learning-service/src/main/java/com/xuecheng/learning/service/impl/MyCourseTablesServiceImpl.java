@@ -1,11 +1,15 @@
 package com.xuecheng.learning.service.impl;
 
+import com.alibaba.nacos.common.utils.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.base.model.PageResult;
 import com.xuecheng.content.model.po.CoursePublish;
 import com.xuecheng.learning.feignclient.ContentServiceClient;
 import com.xuecheng.learning.mapper.XcChooseCourseMapper;
 import com.xuecheng.learning.mapper.XcCourseTablesMapper;
+import com.xuecheng.learning.model.dto.MyCourseTableParams;
 import com.xuecheng.learning.model.dto.XcChooseCourseDto;
 import com.xuecheng.learning.model.dto.XcCourseTablesDto;
 import com.xuecheng.learning.model.po.XcChooseCourse;
@@ -240,5 +244,34 @@ public class MyCourseTablesServiceImpl implements MyCourseTablesService {
         }
 
         return false;
+    }
+
+    // 我的课程表
+    @Override
+    public PageResult<XcCourseTables> myCourseTables(MyCourseTableParams params) {
+        // 页码
+        long pageNo = params.getPage();
+        // 每页记录数, 固定为4
+        long pageSize = params.getSize();
+        // 构造分页条件
+        Page<XcCourseTables> page = new Page<>(pageNo, pageSize);
+        // 根据用户id查询  (查询条件)
+        LambdaQueryWrapper<XcCourseTables> queryWrapper = new LambdaQueryWrapper<XcCourseTables>()
+                .eq(XcCourseTables::getUserId, params.getUserId())
+                .orderByDesc(StringUtils.isNotEmpty(params.getCourseType()) && params.getCourseType().equals("1")
+                        , XcCourseTables::getUpdateDate) //更新时间
+                .orderByDesc(StringUtils.isNotEmpty(params.getCourseType()) && params.getCourseType().equals("2")
+                        , XcCourseTables::getCreateDate); //加入课程时间
+
+        // 分页查询
+        Page<XcCourseTables> pageResult = xcCourseTablesMapper.selectPage(page, queryWrapper);
+        // 记录存放到list集合
+        List<XcCourseTables> records = pageResult.getRecords();
+        // 记录总数
+        long total = pageResult.getTotal();
+        // 填充数据
+        PageResult<XcCourseTables> courseTablesPageResult = new PageResult<>(records, total, pageNo, pageSize);
+
+        return courseTablesPageResult;
     }
 }

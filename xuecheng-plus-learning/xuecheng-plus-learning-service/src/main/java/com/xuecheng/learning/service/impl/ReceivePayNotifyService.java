@@ -1,7 +1,6 @@
 package com.xuecheng.learning.service.impl;
 
 import com.alibaba.fastjson.JSON;
-import com.rabbitmq.client.Channel;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.learning.config.PayNotifyConfig;
 import com.xuecheng.learning.service.MyCourseTablesService;
@@ -29,13 +28,13 @@ public class ReceivePayNotifyService {
 
     // 监听消息队列接收支付结果通知
     @RabbitListener(queues = PayNotifyConfig.PAYNOTIFY_QUEUE)
-    public void receive(Message message, Channel channel) {
+    public void receive(Message message) {
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        // 获取消息
+        // 获取消息, json数据转成mqMessage对象
         MqMessage mqMessage = JSON.parseObject(message.getBody(), MqMessage.class);
         log.debug("学习中心服务接收支付结果:{}", mqMessage);
 

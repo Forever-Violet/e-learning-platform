@@ -8,9 +8,9 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <artifactId>xuecheng-plus-content-model</artifactId>
+    <name>xuecheng-plus-content-model</name>
+    <description>xuecheng-plus-content-model</description>
 
-
-    Java
     <dependencies>
         <dependency>
             <groupId>com.xuecheng</groupId>

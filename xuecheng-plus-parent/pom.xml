@@ -33,6 +33,19 @@
         <elasticsearch.version>7.12.1</elasticsearch.version>
     </properties>
 
+    <modules> <!--聚合各个模块, 为打包做准备-->
+        <module>../xuecheng-plus-base</module>
+        <module>../xuecheng-plus-checkcode</module>
+        <module>../xuecheng-plus-gateway</module>
+        <module>../xuecheng-plus-auth</module>
+        <module>../xuecheng-plus-content</module>
+        <module>../xuecheng-plus-learning</module>
+        <module>../xuecheng-plus-media</module>
+        <module>../xuecheng-plus-orders</module>
+        <module>../xuecheng-plus-message-sdk</module>
+        <module>../xuecheng-plus-search</module>
+        <module>../xuecheng-plus-system</module>
+    </modules>
 
     <dependencyManagement>
         <dependencies>
@@ -51,6 +64,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!--Nacos服务注册、配置中心-->
             <dependency>
                 <groupId>com.alibaba.cloud</groupId>
                 <artifactId>spring-cloud-alibaba-dependencies</artifactId>
@@ -184,14 +198,6 @@
                 <version>${elasticsearch.version}</version>
             </dependency>
 
-            <!--Nacos服务注册、配置中心-->
-            <dependency>
-                <groupId>com.alibaba.cloud</groupId>
-                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
-                <version>${spring-cloud-alibaba.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
         </dependencies>
 
     </dependencyManagement>

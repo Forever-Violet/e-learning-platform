@@ -28,6 +28,7 @@ public class CourseBaseInfoServiceTests {
         PageParams pageParams = new PageParams();
         pageParams.setPageSize(3L);
         pageParams.setPageNo(1L);
+        Long companyId = 123123123L;
 
         PageResult<CourseBase> courseBasePageResult =
                 courseBaseService.queryCourseBaseList(companyId, pageParams, queryCourseParamsDto);

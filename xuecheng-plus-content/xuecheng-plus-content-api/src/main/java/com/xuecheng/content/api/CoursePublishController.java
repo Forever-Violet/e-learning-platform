@@ -1,5 +1,6 @@
 package com.xuecheng.content.api;
 
+import com.xuecheng.content.model.dto.CoursePreviewDto;
 import com.xuecheng.content.model.po.CoursePublish;
 import com.xuecheng.content.service.CoursePublishService;
 import io.swagger.annotations.ApiOperation;
@@ -27,6 +28,29 @@ public class CoursePublishController {
     @GetMapping("/r/coursepublish/{courseId}")
     public CoursePublish getCoursepublish(@PathVariable("courseId") Long courseId) {
         return coursePublishService.getCoursePublish(courseId);
+    }
+
+    @ApiOperation("获取课程发布信息")
+    @ResponseBody
+    @GetMapping("/course/whole/{courseId}")
+    public CoursePreviewDto getCoursePublish(@PathVariable("courseId") Long courseId) {
+/*        // 查询课程发布信息
+        CoursePublish coursePublish = coursePublishService.getCoursePublish(courseId);
+        if (coursePublish == null) {
+            return new CoursePreviewDto();
+        }
+        // 课程基本信息
+        CourseBaseInfoDto courseBaseDto = new CourseBaseInfoDto();
+        BeanUtils.copyProperties(coursePublish, courseBaseDto);
+        // 课程计划, json数据转为List<TeachPlanDto>
+        List<TeachPlanDto> teachPlans = JSON.parseArray(coursePublish.getTeachplan(), TeachPlanDto.class);
+
+        CoursePreviewDto coursePreviewDto = new CoursePreviewDto();
+        coursePreviewDto.setCourseBase(courseBaseDto); //课程基本信息
+        coursePreviewDto.setTeachplans(teachPlans); // 课程计划
+
+        return coursePreviewDto;*/
+        return coursePublishService.getCoursePreviewInfo(courseId);
     }
 
     @GetMapping("/coursepreview/{courseId}")
