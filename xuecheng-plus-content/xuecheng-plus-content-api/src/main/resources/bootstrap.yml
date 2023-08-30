@@ -35,6 +35,9 @@ spring:
           - data-id: feign-${spring.profiles.active}.yaml
             group: xuecheng-plus-common
             refresh: true
+          - data-id: redis-${spring-cloud.version}.yaml
+            group: xuecheng-plus-common
+            refresh: true
   profiles:
     active: dev #环境名
 # 日志文件配置路径

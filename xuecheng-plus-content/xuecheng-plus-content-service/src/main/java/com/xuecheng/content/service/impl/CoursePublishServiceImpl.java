@@ -29,11 +29,13 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.Resource;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -41,6 +43,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -73,6 +77,11 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
     @Autowired
     MediaServiceClient mediaServiceClient;
+
+    @Resource
+    RedisTemplate<String, Object> redisTemplate;
+
+
 
 
     @Override
@@ -191,6 +200,9 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
      * @param courseId 课程id
      */
     private void saveCoursePublish(Long courseId) {
+        // 数据已更新, 将redis缓存中的课程数据删掉
+        redisTemplate.delete("course:"+courseId);
+
         // 整合课程发布信息
         // 查询课程预发布表
         CoursePublishPre coursePublishPre = coursePublishPreMapper.selectById(courseId);
@@ -251,7 +263,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 //            configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
             //更改为如下方式
             configuration.setTemplateLoader(new ClassTemplateLoader(this.getClass().getClassLoader(),"/templates"));
-            
+
             // 设定字符编码
             configuration.setDefaultEncoding("utf-8");
 
@@ -300,5 +312,37 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
     @Override
     public CoursePublish getCoursePublish(Long courseId) {
         return coursePublishMapper.selectById(courseId);
+    }
+
+    @Override
+    public CoursePublish getCoursePublishFirstInCache(Long courseId) {
+        // 先从缓存中查询课程信息
+        Object jsonObj = redisTemplate.opsForValue().get("course:"+courseId);
+        if (jsonObj != null) { //如果从缓存中查到, 则直接返回
+            String jsonString = jsonObj.toString();
+            if(jsonString.equals("null")) { //如果该课程id缓存的是空值, 说明可能是恶意攻击, 直接返回null
+                return null;
+            }
+            //System.out.println("==========从缓存查===========");
+            // 返回
+            return JSON.parseObject(jsonString, CoursePublish.class);
+        } else {
+            // 使用同步锁控制查询数据库的线程，只允许有一个线程去查询数据库，查询得到数据后存入缓存。
+            synchronized (this) {
+                //System.out.println("========从数据库中查========");
+                // 从数据库中查
+                CoursePublish coursePublish = getCoursePublish(courseId);
+//            if (coursePublish != null) { //转成json格式 放入缓存
+//                redisTemplate.opsForValue().set("course:" + courseId, JSON.toJSONString(coursePublish));
+//            }
+                // 即便该课程id查询不到, 我们也将id对应的空值放入缓存, 防止持续的查询增加数据库压力。
+                // 设置随机过期时间300~400s, 防止大量key同时失效, 导致数据库压力过大, 造成缓存雪崩
+                redisTemplate.opsForValue().set("course:" + courseId, JSON.toJSONString(coursePublish),
+                        300+new Random().nextInt(100), TimeUnit.SECONDS);
+                return coursePublish;
+            }
+
+        }
+
     }
 }

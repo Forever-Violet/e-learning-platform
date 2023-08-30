@@ -61,4 +61,11 @@ public interface CoursePublishService extends IService<CoursePublish> {
      * @return CoursePublish
      */
     CoursePublish getCoursePublish(Long courseId);
+
+    /**
+     * @description 根据id先从redis缓存中查询发布的课程信息，如果未查到，那么才去数据库查同时将该课程信息缓存到redis
+     * @param courseId 课程id
+     * @return CoursePublish
+     */
+    CoursePublish getCoursePublishFirstInCache(Long courseId);
 }
