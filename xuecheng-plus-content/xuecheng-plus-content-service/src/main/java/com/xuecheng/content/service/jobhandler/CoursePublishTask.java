@@ -1,5 +1,6 @@
 package com.xuecheng.content.service.jobhandler;
 
+import com.alibaba.fastjson.JSON;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.content.feignclient.SearchServiceClient;
 import com.xuecheng.content.model.po.CourseIndex;
@@ -13,8 +14,10 @@ import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 
@@ -30,6 +33,9 @@ public class CoursePublishTask extends MessageProcessAbstract {
 
     @Autowired
     SearchServiceClient searchServiceClient;
+
+    @Resource
+    RedisTemplate<String, String> redisTemplate;
 
     // 任务调度入口
     @XxlJob("CoursePublishJobHandler")
@@ -135,11 +141,11 @@ public class CoursePublishTask extends MessageProcessAbstract {
             log.debug("课程缓存数据已写入redis, 无需执行");
             return;
         }
-        try {
-            TimeUnit.SECONDS.sleep(2);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+
+        // 先从数据库(这样才能保证是最新的)查询课程发布信息
+        CoursePublish coursePublish = coursePublishService.getCoursePublish(courseId);
+        // 转成json数据存入缓存, 过期时间一天
+        redisTemplate.opsForValue().set("course:" + courseId, JSON.toJSONString(coursePublish), 1, TimeUnit.DAYS);
 
         // 保存第三阶段任务状态为 已完成
         mqMessageService.completedStageThree(id);

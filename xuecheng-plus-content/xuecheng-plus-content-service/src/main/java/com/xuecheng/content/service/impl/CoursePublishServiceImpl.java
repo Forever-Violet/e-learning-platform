@@ -27,6 +27,8 @@ import freemarker.template.Template;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -43,7 +45,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -80,6 +81,9 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
     @Resource
     RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    RedissonClient redissonClient;
 
 
 
@@ -314,8 +318,12 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         return coursePublishMapper.selectById(courseId);
     }
 
+    // 使用Redisson实现分布式锁, 控制本服务的多个实例之间的争锁机制
     @Override
     public CoursePublish getCoursePublishFirstInCache(Long courseId) {
+        // 缓存雪崩是大量key同时失效, 解决方法可以有设置随机过期时间, 或设置同步锁控制同一时间内查询数据库的线程数量, 或者缓存预热 不用等到请求到来再去查询数据库存入缓存，可以提前将数据存入缓存。使用缓存预热机制通常有专门的后台程序去将数据库的数据同步到缓存
+        // 缓存击穿是热点数据存在缓存中的key失效, 大量并发请求命中数据库, 也是可以使用同步锁解决, 或者可以由后台程序提前将热点数据加入缓存，缓存过期时间不过期，由后台程序做好缓存同步。
+        // 缓存穿透是去大量请求访问一个不存在的数据, 从而请求直接命中数据库, 解决方法可以有对查询的字段进行格式校验, 缓存空(null)值, 或使用布隆过滤器,
         // 先从缓存中查询课程信息
         Object jsonObj = redisTemplate.opsForValue().get("course:"+courseId);
         if (jsonObj != null) { //如果从缓存中查到, 则直接返回
@@ -327,8 +335,53 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
             // 返回
             return JSON.parseObject(jsonString, CoursePublish.class);
         } else {
+            // •WatchDog自动延期看门狗机制
+            //第一种情况：在一个分布式环境下，假如一个线程获得锁后，突然服务器宕机了，那么这个时候在一定时间后这个锁会自动释放，你也可以设置锁的有效时间(当不设置默认30秒时），这样的目的主要是防止死锁的发生
+            //第二种情况：线程A业务还没有执行完，时间就过了，线程A 还想持有锁的话，就会启动一个watch dog后台线程，不断的延长锁key的生存时间。
+            // 每一门课程设置一个锁
+            RLock lock = redissonClient.getLock("coursequerylock:"+courseId);
+            // 获取锁
+            lock.lock(); //如果获取到锁, 它会执行下面的try方法
+            try {
+                // 因为当有大量并发请求到达此处(else{} )时, 第一时间只允许一个线程抢到锁, 那么让它从数据库中查数据并放到缓存中, 此时仍然还有刚才到达此处的线程在等待
+                // 等到它们抢到锁后, 此时数据已经放在缓存中了, 所以这里再次从缓存中查询(主要是为那些第一时间没抢到锁的线程服务)
+                // 再次从缓存中查询一下数据
+                jsonObj = redisTemplate.opsForValue().get("course:"+courseId);
+                if (jsonObj != null) {
+                    String jsonString = jsonObj.toString();
+                    if (jsonString.equals("null")) { //如果该课程id缓存的是空值, 说明可能是恶意攻击, 直接返回null
+                        return null;
+                    }
+                    return JSON.parseObject(jsonString, CoursePublish.class);
+                }
+                System.out.println("========从数据库查========");
+                CoursePublish coursePublish = getCoursePublish(courseId);
+                // 转成json数据存入缓存, 过期时间一天
+                redisTemplate.opsForValue().set("course:" + courseId, JSON.toJSONString(coursePublish), 1, TimeUnit.DAYS);
+                return coursePublish;
+
+            } finally {
+                // 释放锁
+                lock.unlock();
+            }
+
+/*
             // 使用同步锁控制查询数据库的线程，只允许有一个线程去查询数据库，查询得到数据后存入缓存。
             synchronized (this) {
+                // 因为当有大量并发请求到达此处 else{} 时, 第一时间只允许一个线程抢到锁, 那么让它从数据库中查数据并放到缓存中, 此时仍然还有刚才到达此处的线程在等待
+                // 等到它们抢到锁后, 此时数据已经放在缓存中了, 所以这里再次从缓存中查询(主要是为那些第一时间没抢到锁的线程服务)
+                // 再次从缓存中查询一下数据
+                jsonObj = redisTemplate.opsForValue().get("course:"+courseId);
+                if (jsonObj != null) { //如果从缓存中查到, 则直接返回
+                    String jsonString = jsonObj.toString();
+                    if (jsonString.equals("null")) { //如果该课程id缓存的是空值, 说明可能是恶意攻击, 直接返回null
+                        return null;
+                    }
+                    //System.out.println("==========从缓存查===========");
+                    // 返回
+                    return JSON.parseObject(jsonString, CoursePublish.class);
+                }
+
                 //System.out.println("========从数据库中查========");
                 // 从数据库中查
                 CoursePublish coursePublish = getCoursePublish(courseId);
@@ -341,6 +394,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
                         300+new Random().nextInt(100), TimeUnit.SECONDS);
                 return coursePublish;
             }
+*/
 
         }
 
